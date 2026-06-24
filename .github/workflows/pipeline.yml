@@ -1,0 +1,75 @@
+name: Indigo BioMed CI/CD Pipeline
+
+#Trigger: run this pipeline whenever the code is pushed to the main branch
+# This means every merge from a feature branch triggers a deployment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+#__________________________________
+# JOB 1: LINT
+# This job check code quality. If lint fai;s.
+#_____________________________________
+
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependecies
+        run: pip install flake8 -r requirements.txt
+
+      - name: Run flake8 lint check
+      #flake ches python stype and common ewrrors
+
+#__________________________________
+# JOB 2: deploy
+#__________________________________
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: lint
+    enviorment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy application to EC2 via SSH
+        env:
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          HOST: ${{ secrets.VM_HOST }}
+          USER: ${{ secrets.VM_USER }}
+        run: |
+          # write the [rivate key to a temp file and restrict permissions
+          # chmod 600 is required -ssh rejects keys that are world readable
+          echo "$SSH_KEY" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          #rsync copies the app files to the EC2 instance
+          # --delete removes files on the server that no longer exisit locally
+          # -o StrictHostChecking=no skips the 'are you sure' SSH prompt
+          rsync -avz --delete \
+            -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
+            ./ $USER@$HOST:/home/$USER/indigo-app/
+
+          # SSH in and restart the applicaiton
+          # pkill stops any running instance. nohup keeps it running
+          # after the SSH session closes. 
+          ssh -i /tmp/deploy_key -o StrictHostChecking=no $USER@HOST \
+            'cd /hone/$USER/indigo-app && \
+            pip install -r requirements.txt -q &&
+            pkill -f app.py || true && \
+            nohup python3 app.py &> app.log &'
+
+
+
+
