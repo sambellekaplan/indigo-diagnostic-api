@@ -62,6 +62,7 @@ APP_INFO.labels(version='1.0.0', environment='dev').set(1)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+
 @app.route('/')
 def index():
     start = time.time()
