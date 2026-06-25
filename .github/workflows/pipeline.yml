@@ -39,7 +39,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-        - name: Deploy application to EC2 via SSH
+      - name: Deploy application to EC2 via SSH
         env:
           SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           HOST: ${{ secrets.VM_HOST }}
