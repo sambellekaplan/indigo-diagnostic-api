@@ -1,56 +1,59 @@
 name: Indigo BioMed CI/CD Pipeline
-#Trigger: run this pipeline whenever the code is pushed to the main branch
-# This means every merge from a feature branch triggers a deployment
-on:
-  push:
+
+on: 
+  push: 
     branches: [main]
-jobs:
-#__________________________________
-# JOB 1: LINT
-# This job check code quality. If lint fai;s.
-#_____________________________________
+
+jobs: 
+  # This job checks the code quality. If lint fails, the deploy job will not run
   lint:
     name: Code Quality Check
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependecies
-        run: pip install flake8 -r requirements.txt
-      - name: Run flake8 lint check
-        run: flake8 . --count --max-line-length=120 --statistics --exclude=.git,.terraform
-      #flake checks python syntax and common ewrrors
-#__________________________________
-# JOB 2: deploy
-#__________________________________
-  deploy:
-    name: Deploy to EC2
-    runs-on: ubuntu-latest
-    needs: lint #if this line wasn't there then the deployment would run
-    environment: production
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install flake8 -r requirements.txt
+
+      - name: Run flake8 lint check
+        run: flake8 . --count --max-line-length=120 --statistics --exclude=.git,.terraform
+
+
+  # Job 2: deploy
+  deploy: 
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: lint
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy application to EC2 via SSH
         env:
-          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
-          HOST: ${{ secrets.VM_HOST }}
-          USER: ${{ secrets.VM_USER }}
+          SSH_KEY: ${{secrets.VM_SSH_KEY}}
+          HOST: ${{secrets.VM_HOST}}
+          USER: ${{secrets.VM_USER}}
         run: |
           echo "$SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-         
+
+    
           rsync -avz --delete \
-          -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
+          -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
           ./ $USER@$HOST:/home/$USER/indigo-app/
-         
-          ssh -i /tmp/deploy_key -o StrictHostChecking=no $USER@$HOST \
+      
+          ssh -i/tmp/deploy_key -o StrictHostKeyChecking=no $USER@$HOST \
             'cd /home/$USER/indigo-app && \
-            pip install -r requirements.txt -q &&
+            pip install -r requirements.txt -q && \
             pkill -f app.py || true && \
             nohup python3 app.py &> app.log &'
+
+    
