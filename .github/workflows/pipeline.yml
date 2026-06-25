@@ -38,56 +38,42 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Deploy application to EC2 via SSH
+
+        - name: Deploy application to EC2 via SSH
         env:
           SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           HOST: ${{ secrets.VM_HOST }}
           USER: ${{ secrets.VM_USER }}
         run: |
-          # write the private key to a temp file and restrict permissions
-          # chmod 600 is required -ssh rejects keys that are world readable
+          # Write SSH key
           echo "$SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-
-              # VERIFY the key file exists and has content
-          if [ ! -f /tmp/deploy_key ]; then
-            echo "ERROR: /tmp/deploy_key does not exist"
-            exit 1
-          fi
           
-          if [ ! -s /tmp/deploy_key ]; then
-            echo "ERROR: /tmp/deploy_key is empty"
-            exit 1
-          fi
-          
-          echo "✓ Key file created successfully"
-          echo "✓ Key file size: $(wc -c < /tmp/deploy_key) bytes"
+          # Verify the key
+          echo "✓ Key file size: $(stat -c%s /tmp/deploy_key) bytes"
           echo "✓ First line: $(head -n 1 /tmp/deploy_key)"
           
-          # Test SSH connection first
-          echo "Testing SSH connection..."
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 "${USER}@${HOST}" 'echo "SSH connection OK"' || exit 1
+          # Test SSH connection
+          echo "Testing SSH connection to ${USER}@${HOST}..."
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 "${USER}@${HOST}" 'echo "SSH connection successful"'
           
-          # Now run rsync
+          # Rsync
           echo "Starting rsync..."
           rsync -avz --delete \
             -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
             ./ "${USER}@${HOST}:/home/${USER}/indigo-app/"
-
-
-
-          #rsync copies the app files to the EC2 instance
-          # --delete removes files on the server that no longer exist locally
-          # -o StrictHostChecking=no skips the 'are you sure' SSH prompt
-          rsync -avz --delete \
-            -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
-            ./ $USER@$HOST:/home/$USER/indigo-app/
+          
           # SSH in and restart the application
-          # pkill stops any running instance. nohup keeps it running
-          # after the SSH session closes. 
-          ssh -i /tmp/deploy_key -o StrictHostChecking=no $USER@$HOST \
-            'cd /home/$USER/indigo-app && \
-            pip install -r requirements.txt -q &&
-            pkill -f app.py || true && \
-            nohup python3 app.py &> app.log &'
+          echo "Restarting application..."
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no "${USER}@${HOST}" << 'ENDSSH'
+          cd /home/${USER}/indigo-app && \
+          pip install -r requirements.txt -q && \
+          pkill -f app.py || true && \
+          nohup python3 app.py &> app.log &
+          ENDSSH
+          
+          # Cleanup
+          rm -f /tmp/deploy_key
+          echo "✓ Deployment complete"
+      
+      
