@@ -51,7 +51,7 @@ jobs:
           # -o StrictHostChecking=no skips the 'are you sure' SSH prompt
           rsync -avz --delete \
             -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
-            ./ $USER@$HOST:/home/$USER/indigo-app/
+            ./$USER@$HOST:/home/$USER/indigo-app/
           # SSH in and restart the applicaiton
           # pkill stops any running instance. nohup keeps it running
           # after the SSH session closes. 
