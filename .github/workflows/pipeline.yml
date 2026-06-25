@@ -42,19 +42,13 @@ jobs:
           HOST: ${{ secrets.VM_HOST }}
           USER: ${{ secrets.VM_USER }}
         run: |
-          # write the [rivate key to a temp file and restrict permissions
-          # chmod 600 is required -ssh rejects keys that are world readable
           echo "$SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
-          #rsync copies the app files to the EC2 instance
-          # --delete removes files on the server that no longer exisit locally
-          # -o StrictHostChecking=no skips the 'are you sure' SSH prompt
+         
           rsync -avz --delete \
           -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
           ./ $USER@$HOST:/home/$USER/indigo-app/
-          # SSH in and restart the applicaiton
-          # pkill stops any running instance. nohup keeps it running
-          # after the SSH session closes. 
+         
           ssh -i /tmp/deploy_key -o StrictHostChecking=no $USER@$HOST \
             'cd /home/$USER/indigo-app && \
             pip install -r requirements.txt -q &&
