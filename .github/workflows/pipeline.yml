@@ -30,7 +30,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    needs: lint
+    needs: lint #if this line wasn't there then the deployment would run
     environment: production
     steps:
       - name: Checkout code
@@ -50,8 +50,8 @@ jobs:
           # --delete removes files on the server that no longer exisit locally
           # -o StrictHostChecking=no skips the 'are you sure' SSH prompt
           rsync -avz --delete \
-            -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
-            ./$USER@$HOST:/home/$USER/indigo-app/
+          -e "ssh -i /tmp/deploy_key -o StrictHostChecking=no" \
+          ./ $USER@$HOST:/home/$USER/indigo-app/
           # SSH in and restart the applicaiton
           # pkill stops any running instance. nohup keeps it running
           # after the SSH session closes. 
